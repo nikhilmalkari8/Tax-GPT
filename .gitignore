@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# Python virtual environments
+venv/
+tax-gpt-env/
+
+# Environment files
+.env
+server/.env
+
+# Build directories
+dist/
+build/
+uploads/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

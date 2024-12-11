@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tax GPT - User Authentication and Preferences</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    input {
+      display: block;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      width: 300px;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    #message {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #userInfo {
+      margin-top: 1rem;
+      font-style: italic;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tax GPT - User Authentication and Preferences</h1>
+
+  <div>
+    <h2>Sign Up</h2>
+    <input type="email" id="signupEmail" placeholder="Email">
+    <input type="password" id="signupPassword" placeholder="Password">
+    <button type="button" onclick="signUp()">Sign Up</button>
+  </div>
+
+  <div>
+    <h2>Log In</h2>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button type="button" onclick="logIn()">Log In</button>
+  </div>
+
+  <div>
+    <h2>User Info</h2>
+    <p id="userInfo">Not logged in</p>
+    <button type="button" onclick="logOut()">Logout</button>
+  </div>
+
+  <div>
+    <h2>User Preferences</h2>
+    <label for="taxRegion">Preferred Tax Region:</label>
+    <input type="text" id="taxRegion" placeholder="e.g., California">
+
+    <label for="language">Preferred Language:</label>
+    <input type="text" id="language" placeholder="e.g., English">
+
+    <button type="button" onclick="savePreferences()">Save Preferences</button>
+    <button type="button" onclick="loadPreferences()">Load Preferences</button>
+  </div>
+
+  <div>
+    <h2>Ask a Tax-Related Question</h2>
+    <select id="systemPrompt">
+      <option value="You are a helpful assistant providing general tax advice.">General Tax Advice</option>
+      <option value="You are a tax advisor specializing in small business taxes.">Small Business Tax Advice</option>
+      <option value="You are an expert on personal income tax filing.">Personal Income Tax Advice</option>
+    </select>
+    <input type="text" id="userQuery" placeholder="Enter your tax-related question">
+    <button type="button" onclick="askQuestion()">Get Response</button>
+    <p id="responseMessage"></p>
+  </div>
+
+  <div>
+    <h2>Upload Tax File</h2>
+    <input type="file" id="fileInput">
+    <button type="button" onclick="uploadFile()">Upload File</button>
+    <p id="uploadMessage"></p>
+  </div>
+
+  <p id="message"></p>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCfGZpAbcjM8ZXrMnjjJkHelD3oLNC9g6I",
+      authDomain: "tax-gpt-auth.firebaseapp.com",
+      projectId: "tax-gpt-auth",
+      storageBucket: "tax-gpt-auth.appspot.com",
+      messagingSenderId: "550255777314",
+      appId: "1:550255777314:web:0d4d517e5b7bdf4fa61c7b",
+      measurementId: "G-W83VPSG0JY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Sign Up Function
+    window.signUp = function () {
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const message = document.getElementById('message');
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          message.textContent = 'Sign-up successful!';
+          message.style.color = 'green';
+          console.log('User signed up:', userCredential.user);
+        })
+        .catch((error) => {
+          message.textContent = error.message;
+          message.style.color = 'red';
+          console.error('Sign-up error:', error);
+        });
+    }
+
+    // Log In Function
+    window.logIn = function () {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const message = document.getElementById('message');
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          message.textContent = 'Login successful!';
+          message.style.color = 'green';
+          console.log('User logged in:', userCredential.user);
+        })
+        .catch((error) => {
+          message.textContent = error.message;
+          message.style.color = 'red';
+          console.error('Login error:', error);
+        });
+    }
+
+    // Log Out Function
+    window.logOut = function () {
+      const message = document.getElementById('message');
+      signOut(auth)
+        .then(() => {
+          message.textContent = 'Logout successful!';
+          message.style.color = 'green';
+        })
+        .catch((error) => {
+          message.textContent = error.message;
+          message.style.color = 'red';
+          console.error('Logout error:', error);
+        });
+    }
+
+    // Save User Preferences
+    window.savePreferences = async function () {
+      const taxRegion = document.getElementById('taxRegion').value;
+      const language = document.getElementById('language').value;
+      const message = document.getElementById('message');
+
+      const user = auth.currentUser;
+
+      if (!user) {
+        message.textContent = 'You must be logged in to save preferences.';
+        message.style.color = 'red';
+        return;
+      }
+
+      try {
+        await setDoc(doc(db, 'preferences', user.uid), {
+          taxRegion,
+          language
+        });
+        message.textContent = 'Preferences saved successfully!';
+        message.style.color = 'green';
+      } catch (error) {
+        message.textContent = `Error saving preferences: ${error.message}`;
+        message.style.color = 'red';
+      }
+    }
+
+    // Load User Preferences
+    window.loadPreferences = async function () {
+      const taxRegionInput = document.getElementById('taxRegion');
+      const languageInput = document.getElementById('language');
+      const message = document.getElementById('message');
+
+      const user = auth.currentUser;
+
+      if (!user) {
+        message.textContent = 'You must be logged in to load preferences.';
+        message.style.color = 'red';
+        return;
+      }
+
+      try {
+        const docRef = doc(db, 'preferences', user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          taxRegionInput.value = data.taxRegion;
+          languageInput.value = data.language;
+          message.textContent = 'Preferences loaded successfully!';
+          message.style.color = 'green';
+        } else {
+          message.textContent = 'No preferences found for this user.';
+          message.style.color = 'red';
+        }
+      } catch (error) {
+        message.textContent = `Error loading preferences: ${error.message}`;
+        message.style.color = 'red';
+      }
+    }
+
+    // Ask Question Function with System Prompts
+    window.askQuestion = async function () {
+      const query = document.getElementById('userQuery').value;
+      const systemPrompt = document.getElementById('systemPrompt').value;
+      const responseMessage = document.getElementById('responseMessage');
+
+      try {
+        const response = await fetch('http://localhost:3000/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, systemPrompt })
+        });
+
+        const data = await response.json();
+        responseMessage.textContent = data.answer;
+        responseMessage.style.color = 'black';
+      } catch (error) {
+        responseMessage.textContent = 'Error fetching response from the server.';
+        responseMessage.style.color = 'red';
+        console.error('Error:', error);
+      }
+    }
+
+    // File Upload Function
+    window.uploadFile = async function () {
+      const fileInput = document.getElementById('fileInput');
+      const uploadMessage = document.getElementById('uploadMessage');
+
+      if (fileInput.files.length === 0) {
+        uploadMessage.textContent = 'Please select a file to upload.';
+        uploadMessage.style.color = 'red';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('taxFile', fileInput.files[0]);
+
+      try {
+        const response = await fetch('http://localhost:3000/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        uploadMessage.textContent = data.message;
+        uploadMessage.style.color = 'green';
+      } catch (error) {
+        uploadMessage.textContent = 'Error uploading file.';
+        uploadMessage.style.color = 'red';
+        console.error('Error:', error);
+      }
+    }
+  </script>
+</body>
+</html>
